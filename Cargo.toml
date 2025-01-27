@@ -1,0 +1,12 @@
+[package]
+name = "des"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# data structure to make working with data as individual bits easier
+bitvec = "1.0.1"
+# easy argument parsing
+clap = { version = "4.5.27", features = ["derive"] }
+# easy conversion between binary data and hex strings
+hex = "0.4.3"
