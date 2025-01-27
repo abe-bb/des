@@ -1,4 +1,5 @@
 mod key;
+mod permutation;
 
 use clap::Parser;
 
