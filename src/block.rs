@@ -186,4 +186,36 @@ mod test {
 
         assert_eq!(expected_ciphertext, block.encrypt(key))
     }
+    #[test]
+    fn test_encryption2() {
+        let block = Block::try_from("596F7572206C6970").unwrap();
+        let key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let expected_ciphertext = "C0999FDDE378D7ED";
+
+        assert_eq!(expected_ciphertext, block.encrypt(key))
+    }
+    #[test]
+    fn test_encryption3() {
+        let block = Block::try_from("732061726520736D").unwrap();
+        let key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let expected_ciphertext = "727DA00BCA5A84EE";
+
+        assert_eq!(expected_ciphertext, block.encrypt(key))
+    }
+    #[test]
+    fn test_encryption4() {
+        let block = Block::try_from("6F6F746865722074").unwrap();
+        let key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let expected_ciphertext = "47F269A4D6438190";
+
+        assert_eq!(expected_ciphertext, block.encrypt(key))
+    }
+    #[test]
+    fn test_encryption5() {
+        let block = Block::try_from("8787878787878787").unwrap();
+        let key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let expected_ciphertext = "0000000000000000";
+
+        assert_eq!(expected_ciphertext, block.encrypt(key))
+    }
 }
