@@ -42,9 +42,10 @@ impl TryFrom<&str> for Key {
         let bits: [u8; 8] = bytes.try_into().unwrap();
         let array: BitArray<[u8; 8], Msb0> = BitArray::from(bits);
         let raw_key = BitVec::from_iter(array.iter());
-        let permuted_key = permute(&raw_key, &PC_1);
-        let left = permuted_key[0..28].to_bitvec();
+        let mut permuted_key = permute(&raw_key, &PC_1);
         let right = permuted_key[28..].to_bitvec();
+        permuted_key.resize(28, false);
+        let left = permuted_key;
 
         Ok(Key {
             left,
@@ -81,7 +82,7 @@ mod test {
         assert!(key.is_err());
     }
     #[test]
-    fn key_halves_stored_correctly() {
+    fn key_halves_permuted_and_stored_correctly() {
         let key: Key = "133457799BBCDFF1".try_into().unwrap(); // binary 00010011 00110100 01010111 01111001 10011011 10111100 11011111 11110001
         let left = bitvec![
             1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1
