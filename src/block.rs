@@ -8,14 +8,37 @@ use crate::{
 };
 
 #[derive(Debug)]
-struct Block {
+pub struct Block {
     left: BitVec,
     right: BitVec,
     round: u8,
 }
 
 impl Block {
-    pub fn encrypt(mut self, mut key: Key) -> BitVec {
+    pub fn encrypt(self, key: Key) -> String {
+        let bits = self.encrypt_bits(key);
+        assert_eq!(64, bits.len());
+
+        let mut counter = 0;
+        let mut byte: u8 = 0;
+        let mut result_bytes: Vec<u8> = Vec::new();
+        for bit in bits.into_iter() {
+            counter += 1;
+            byte <<= 1;
+            byte |= bit as u8;
+
+            if counter == 8 {
+                counter = 0;
+                result_bytes.push(byte);
+                byte = 0;
+            }
+        }
+
+        assert_eq!(8, result_bytes.len());
+        hex::encode(result_bytes).to_uppercase()
+    }
+
+    fn encrypt_bits(mut self, mut key: Key) -> BitVec {
         for _ in 0..16 {
             key.advance_round();
             let round_key = key.get_round_key();
@@ -144,7 +167,7 @@ mod test {
     }
 
     #[test]
-    fn test_encryption() {
+    fn test_encrypt_bits() {
         let block = Block::try_from("0123456789ABCDEF").unwrap();
         let key: Key = "133457799BBCDFF1".try_into().unwrap();
         let expected_ciphertext = bitvec![
@@ -153,6 +176,14 @@ mod test {
             0, 0, 0, 1, 0, 1
         ];
 
-        assert_eq!(expected_ciphertext, block.encrypt(key));
+        assert_eq!(expected_ciphertext, block.encrypt_bits(key));
+    }
+    #[test]
+    fn test_encryption1() {
+        let block = Block::try_from("0123456789ABCDEF").unwrap();
+        let key: Key = "133457799BBCDFF1".try_into().unwrap();
+        let expected_ciphertext = "85E813540F0AB405";
+
+        assert_eq!(expected_ciphertext, block.encrypt(key))
     }
 }

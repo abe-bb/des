@@ -1,4 +1,4 @@
-use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
+use bitvec::{slice::BitSlice, vec::BitVec};
 
 pub fn permute<const OUTPUT: usize>(input: &BitSlice, permutation: &[usize; OUTPUT]) -> BitVec {
     let mut output = BitVec::with_capacity(OUTPUT);
