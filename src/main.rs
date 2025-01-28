@@ -1,3 +1,4 @@
+mod block;
 mod key;
 mod permutation;
 
