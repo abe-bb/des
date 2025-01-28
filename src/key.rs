@@ -12,7 +12,7 @@ pub struct Key {
 
 impl Key {
     pub fn advance_round(&mut self) {
-        self.round = self.round + 1 % 16;
+        self.round = (self.round + 1) % 16;
         if self.round == 0 || self.round == 1 || self.round == 2 || self.round == 9 {
             self.left.rotate_left(1);
             self.right.rotate_left(1);
@@ -83,7 +83,8 @@ mod test {
     }
     #[test]
     fn key_halves_permuted_and_stored_correctly() {
-        let key: Key = "133457799BBCDFF1".try_into().unwrap(); // binary 00010011 00110100 01010111 01111001 10011011 10111100 11011111 11110001
+        // binary 00010011 00110100 01010111 01111001 10011011 10111100 11011111 11110001
+        let key: Key = "133457799BBCDFF1".try_into().unwrap();
         let left = bitvec![
             1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1
         ];
@@ -142,5 +143,35 @@ mod test {
         assert_eq!(expected_left, key.left);
         assert_eq!(expected_right, key.right);
         assert_eq!(1, key.round);
+    }
+
+    #[test]
+    fn key_integration_test() {
+        let mut key: Key = "133457799BBCDFF1".try_into().unwrap();
+        key.advance_round();
+        let expected_subkey1 = bitvec![
+            0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0
+        ];
+
+        assert_eq!(expected_subkey1, key.get_round_key());
+
+        for _ in 0..7 {
+            key.advance_round();
+        }
+        let expected_subkey8 = bitvec![
+            1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0,
+            0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1
+        ];
+        assert_eq!(expected_subkey8, key.get_round_key());
+
+        for _ in 0..8 {
+            key.advance_round();
+        }
+        let expected_subkey16 = bitvec![
+            1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1,
+            1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1
+        ];
+        assert_eq!(expected_subkey16, key.get_round_key());
     }
 }

@@ -2,7 +2,8 @@ use bitvec::{array::BitArray, order::Msb0, slice::BitSlice, vec::BitVec};
 use hex::FromHexError;
 
 use crate::{
-    permutation::{permute, E_TABLE, IP, P_TABLE},
+    key::Key,
+    permutation::{permute, E_TABLE, IP, IP_INVERSE, P_TABLE},
     substitution::s_boxes,
 };
 
@@ -10,14 +11,29 @@ use crate::{
 struct Block {
     left: BitVec,
     right: BitVec,
-    plaintext: bool,
     round: u8,
 }
 
 impl Block {
-    pub fn advance_round(&mut self, round_key: &BitSlice) {
+    pub fn encrypt(mut self, mut key: Key) -> BitVec {
+        for _ in 0..16 {
+            key.advance_round();
+            let round_key = key.get_round_key();
+            self.advance_round(&round_key);
+        }
+        let combined = BitVec::from_iter(self.right.iter().chain(self.left.iter()));
+        permute(&combined, &IP_INVERSE)
+    }
+
+    fn advance_round(&mut self, round_key: &BitSlice) {
         self.round = self.round + 1 % 16;
-        let new_right = self.f_function(round_key);
+        // f function output XOR'd with previous left
+        let mut new_right = self.f_function(round_key);
+        new_right ^= &self.left;
+
+        // set round keys
+        std::mem::swap(&mut new_right, &mut self.right);
+        std::mem::swap(&mut new_right, &mut self.left);
     }
 
     fn f_function(&mut self, round_key: &BitSlice) -> BitVec {
@@ -49,7 +65,6 @@ impl TryFrom<&str> for Block {
         Ok(Block {
             left,
             right,
-            plaintext: true,
             round: 0,
         })
     }
@@ -105,5 +120,39 @@ mod test {
         let mut block = Block::try_from("0123456789ABCDEF").unwrap();
 
         assert_eq!(expected_f_function_output, block.f_function(&subkey));
+    }
+    #[test]
+    fn test_round_advance() {
+        let mut block = Block::try_from("0123456789ABCDEF").unwrap();
+
+        let expected_right = bitvec![
+            1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0,
+            1, 0, 0
+        ];
+        let expected_left = bitvec![
+            1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1,
+            0, 1, 0
+        ];
+        let subkey = bitvec![
+            0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0
+        ];
+
+        block.advance_round(&subkey);
+        assert_eq!(expected_left, block.left);
+        assert_eq!(expected_right, block.right);
+    }
+
+    #[test]
+    fn test_encryption() {
+        let block = Block::try_from("0123456789ABCDEF").unwrap();
+        let key: Key = "133457799BBCDFF1".try_into().unwrap();
+        let expected_ciphertext = bitvec![
+            1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0,
+            1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0,
+            0, 0, 0, 1, 0, 1
+        ];
+
+        assert_eq!(expected_ciphertext, block.encrypt(key));
     }
 }

@@ -21,11 +21,6 @@ pub fn s_boxes(input: BitVec) -> BitVec {
         let s_box_index = row * SBOX_ROW_LEN + column;
         let substitute = TABLES[i][s_box_index];
 
-        println!(
-            "row: {}, col: {}, selected output: {}",
-            row, column, substitute
-        );
-
         // push substitute bits onto the output
         for j in (0..4).rev() {
             output.push((substitute >> j & 1) == 1);
