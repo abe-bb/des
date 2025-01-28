@@ -22,7 +22,7 @@ impl Key {
         }
     }
 
-    pub fn get_permuted_subkey(&self) -> BitVec {
+    pub fn get_round_key(&self) -> BitVec {
         let combined: BitVec = BitVec::from_iter(self.left.iter().chain(self.right.iter()));
         permute(&combined, &PC_2)
     }
@@ -109,7 +109,7 @@ mod test {
             round: 1,
         };
 
-        let permuted_subkey = key.get_permuted_subkey();
+        let permuted_subkey = key.get_round_key();
         let expected_permuted_subkey = bitvec![
             0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
             1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0

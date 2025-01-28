@@ -1,13 +1,34 @@
-use bitvec::{array::BitArray, order::Msb0, vec::BitVec};
+use bitvec::{array::BitArray, order::Msb0, slice::BitSlice, vec::BitVec};
 use hex::FromHexError;
 
-use crate::permutation::{permute, IP};
+use crate::{
+    permutation::{permute, E_TABLE, IP, P_TABLE},
+    substitution::s_boxes,
+};
 
 #[derive(Debug)]
 struct Block {
     left: BitVec,
     right: BitVec,
     plaintext: bool,
+    round: u8,
+}
+
+impl Block {
+    pub fn advance_round(&mut self, round_key: &BitSlice) {
+        self.round = self.round + 1 % 16;
+        let new_right = self.f_function(round_key);
+    }
+
+    fn f_function(&mut self, round_key: &BitSlice) -> BitVec {
+        // Expand previous right block and XOR with key
+        let mut new_right = permute(&self.right, &E_TABLE);
+        new_right ^= round_key;
+        let s_boxed_right = s_boxes(new_right);
+        let permuted_right = permute(&s_boxed_right, &P_TABLE);
+
+        permuted_right
+    }
 }
 
 impl TryFrom<&str> for Block {
@@ -29,6 +50,7 @@ impl TryFrom<&str> for Block {
             left,
             right,
             plaintext: true,
+            round: 0,
         })
     }
 }
@@ -68,5 +90,20 @@ mod test {
 
         assert_eq!(expected_left, block.left);
         assert_eq!(expected_right, block.right);
+    }
+    #[test]
+    fn test_f_function() {
+        let subkey = bitvec![
+            0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0
+        ];
+
+        let expected_f_function_output = bitvec![
+            0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1,
+            0, 1, 1
+        ];
+        let mut block = Block::try_from("0123456789ABCDEF").unwrap();
+
+        assert_eq!(expected_f_function_output, block.f_function(&subkey));
     }
 }

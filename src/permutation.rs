@@ -26,6 +26,16 @@ pub const IP: [usize; 64] = [
     53, 45, 37, 29, 21, 13, 5, 63, 55, 47, 39, 31, 23, 15, 7,
 ];
 
+pub const E_TABLE: [usize; 48] = [
+    32, 1, 2, 3, 4, 5, 4, 5, 6, 7, 8, 9, 8, 9, 10, 11, 12, 13, 12, 13, 14, 15, 16, 17, 16, 17, 18,
+    19, 20, 21, 20, 21, 22, 23, 24, 25, 24, 25, 26, 27, 28, 29, 28, 29, 30, 31, 32, 1,
+];
+
+pub const P_TABLE: [usize; 32] = [
+    16, 7, 20, 21, 29, 12, 28, 17, 1, 15, 23, 26, 5, 18, 31, 10, 2, 8, 24, 14, 32, 27, 3, 9, 19,
+    13, 30, 6, 22, 11, 4, 25,
+];
+
 #[cfg(test)]
 mod test {
     use bitvec::bitvec;
@@ -78,5 +88,34 @@ mod test {
         ];
 
         assert_eq!(expected_permuted_data, permute(&data, &IP));
+    }
+
+    #[test]
+    fn test_e_expansion() {
+        let half_block = bitvec![
+            1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1,
+            0, 1, 0
+        ];
+        let expected_expanded_half_block = bitvec![
+            0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1,
+            0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
+        ];
+
+        assert_eq!(expected_expanded_half_block, permute(&half_block, &E_TABLE));
+    }
+
+    #[test]
+    fn test_p_permutation() {
+        let input = bitvec![
+            0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0,
+            1, 1, 1
+        ];
+
+        let expected_p_permuted_output = bitvec![
+            0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1,
+            0, 1, 1
+        ];
+
+        assert_eq!(expected_p_permuted_output, permute(&input, &P_TABLE));
     }
 }

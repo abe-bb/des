@@ -1,6 +1,7 @@
 mod block;
 mod key;
 mod permutation;
+mod substitution;
 
 use clap::Parser;
 
