@@ -7,7 +7,7 @@ use crate::permutation::{permute, PC_1, PC_2};
 pub struct Key {
     left: BitVec,
     right: BitVec,
-    round: u8,
+    round: i8,
 }
 
 impl Key {

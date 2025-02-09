@@ -15,7 +15,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn encrypt(self, key: Key) -> String {
+    pub fn encrypt(self, key: &mut Key) -> String {
         let bits = self.encrypt_bits(key);
         assert_eq!(64, bits.len());
 
@@ -38,10 +38,48 @@ impl Block {
         hex::encode(result_bytes).to_uppercase()
     }
 
-    fn encrypt_bits(mut self, mut key: Key) -> BitVec {
+    pub fn decrypt(self, key: &mut Key) -> String {
+        let bits = self.decrypt_bits(key);
+        assert_eq!(64, bits.len());
+
+        let mut counter = 0;
+        let mut byte: u8 = 0;
+        let mut result_bytes: Vec<u8> = Vec::new();
+        for bit in bits.into_iter() {
+            counter += 1;
+            byte <<= 1;
+            byte |= bit as u8;
+
+            if counter == 8 {
+                counter = 0;
+                result_bytes.push(byte);
+                byte = 0;
+            }
+        }
+
+        assert_eq!(8, result_bytes.len());
+        hex::encode(result_bytes).to_uppercase()
+    }
+
+    fn encrypt_bits(mut self, key: &mut Key) -> BitVec {
         for _ in 0..16 {
             key.advance_round();
             let round_key = key.get_round_key();
+            self.advance_round(&round_key);
+        }
+        let combined = BitVec::from_iter(self.right.iter().chain(self.left.iter()));
+        permute(&combined, &IP_INVERSE)
+    }
+
+    fn decrypt_bits(mut self, key: &mut Key) -> BitVec {
+        let mut round_keys: Vec<BitVec> = Vec::new();
+        for _ in 0..16 {
+            key.advance_round();
+            let round_key = key.get_round_key();
+            round_keys.push(round_key);
+        }
+
+        for round_key in round_keys.into_iter().rev() {
             self.advance_round(&round_key);
         }
         let combined = BitVec::from_iter(self.right.iter().chain(self.left.iter()));
@@ -169,53 +207,110 @@ mod test {
     #[test]
     fn test_encrypt_bits() {
         let block = Block::try_from("0123456789ABCDEF").unwrap();
-        let key: Key = "133457799BBCDFF1".try_into().unwrap();
+        let mut key: Key = "133457799BBCDFF1".try_into().unwrap();
         let expected_ciphertext = bitvec![
             1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0,
             1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0,
             0, 0, 0, 1, 0, 1
         ];
 
-        assert_eq!(expected_ciphertext, block.encrypt_bits(key));
+        assert_eq!(expected_ciphertext, block.encrypt_bits(&mut key));
     }
     #[test]
     fn test_encryption1() {
         let block = Block::try_from("0123456789ABCDEF").unwrap();
-        let key: Key = "133457799BBCDFF1".try_into().unwrap();
+        let mut key: Key = "133457799BBCDFF1".try_into().unwrap();
         let expected_ciphertext = "85E813540F0AB405";
 
-        assert_eq!(expected_ciphertext, block.encrypt(key))
+        assert_eq!(expected_ciphertext, block.encrypt(&mut key))
     }
     #[test]
     fn test_encryption2() {
         let block = Block::try_from("596F7572206C6970").unwrap();
-        let key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let mut key: Key = "0E329232EA6D0D73".try_into().unwrap();
         let expected_ciphertext = "C0999FDDE378D7ED";
 
-        assert_eq!(expected_ciphertext, block.encrypt(key))
+        assert_eq!(expected_ciphertext, block.encrypt(&mut key))
     }
     #[test]
     fn test_encryption3() {
         let block = Block::try_from("732061726520736D").unwrap();
-        let key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let mut key: Key = "0E329232EA6D0D73".try_into().unwrap();
         let expected_ciphertext = "727DA00BCA5A84EE";
 
-        assert_eq!(expected_ciphertext, block.encrypt(key))
+        assert_eq!(expected_ciphertext, block.encrypt(&mut key))
     }
     #[test]
     fn test_encryption4() {
         let block = Block::try_from("6F6F746865722074").unwrap();
-        let key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let mut key: Key = "0E329232EA6D0D73".try_into().unwrap();
         let expected_ciphertext = "47F269A4D6438190";
 
-        assert_eq!(expected_ciphertext, block.encrypt(key))
+        assert_eq!(expected_ciphertext, block.encrypt(&mut key))
     }
     #[test]
     fn test_encryption5() {
         let block = Block::try_from("8787878787878787").unwrap();
-        let key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let mut key: Key = "0E329232EA6D0D73".try_into().unwrap();
         let expected_ciphertext = "0000000000000000";
 
-        assert_eq!(expected_ciphertext, block.encrypt(key))
+        assert_eq!(expected_ciphertext, block.encrypt(&mut key))
+    }
+    #[test]
+    fn test_encryption6() {
+        let block = Block::try_from("68616E2076617365").unwrap();
+        let mut key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let expected_ciphertext = "D9D52F78F5358499";
+
+        assert_eq!(expected_ciphertext, block.encrypt(&mut key))
+    }
+
+    #[test]
+    fn test_decryption1() {
+        let cipher_block = Block::try_from("C0999FDDE378D7ED").unwrap();
+        let mut key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let expected_plaintext = "596F7572206C6970";
+
+        assert_eq!(expected_plaintext, cipher_block.decrypt(&mut key));
+    }
+    #[test]
+    fn test_decryption2() {
+        let cipher_block = Block::try_from("727DA00BCA5A84EE").unwrap();
+        let mut key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let expected_plaintext = "732061726520736D";
+
+        assert_eq!(expected_plaintext, cipher_block.decrypt(&mut key));
+    }
+    #[test]
+    fn test_decryption3() {
+        let cipher_block = Block::try_from("47F269A4D6438190").unwrap();
+        let mut key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let expected_plaintext = "6F6F746865722074";
+
+        assert_eq!(expected_plaintext, cipher_block.decrypt(&mut key));
+    }
+    #[test]
+    fn test_decryption4() {
+        let cipher_block = Block::try_from("828AC9B453E0E653").unwrap();
+        let mut key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let expected_plaintext = "6C696E650D0A0000";
+
+        assert_eq!(expected_plaintext, cipher_block.decrypt(&mut key));
+    }
+    #[test]
+    fn test_decryption5() {
+        let cipher_block = Block::try_from("85E813540F0AB405").unwrap();
+        let mut key: Key = "133457799BBCDFF1".try_into().unwrap();
+        let expected_plaintext = "0123456789ABCDEF";
+
+        assert_eq!(expected_plaintext, cipher_block.decrypt(&mut key));
+    }
+    #[test]
+    fn test_decryption6() {
+        let cipher_block = Block::try_from("d9d52f78f5358499").unwrap();
+        let mut key: Key = "0E329232EA6D0D73".try_into().unwrap();
+        let expected_plaintext = "68616E2076617365";
+
+        assert_eq!(expected_plaintext, cipher_block.decrypt(&mut key));
     }
 }
